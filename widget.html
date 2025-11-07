@@ -94,6 +94,13 @@
         // ***************************************************************
         const API_URL = 'https://transmarginal-unimpoverished-tyrone.ngrok-free.dev/api/tutor'; 
 
+        // --------------------------------------------------------------------
+        // --- CORRECCIÓN: GENERA UN ID ÚNICO POR SESIÓN (CARGA DE PÁGINA) ---
+        // --------------------------------------------------------------------
+        const SESSION_ID = 'sesion_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+        console.log("Nueva Sesión ID:", SESSION_ID); // Para depuración
+        // --------------------------------------------------------------------
+
         // Función para agregar mensajes a la ventana de chat
         function appendMessage(sender, message) {
             const chatWindow = document.getElementById('chat-window');
@@ -132,7 +139,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         message: message, // El mensaje real o vacío si es inicial
-                        user_id: 'mi_primer_estudiante' // ID de sesión para la memoria
+                        user_id: SESSION_ID // <--- ¡CAMBIO CLAVE AQUÍ!
                     })
                 });
 
@@ -157,8 +164,10 @@
         
         // Función que se ejecuta al cargar la página para forzar el primer mensaje
         function iniciarDiagnostico() {
-            // Llama a sendMessage con 'true' para enviar el mensaje vacío
-            // Esto obliga a STIA a responder con la FASE 1 (Bienvenida)
+            // Habilita los inputs
+            document.getElementById('user-input').disabled = false;
+            document.getElementById('send-button').disabled = false;
+            // Llama a sendMessage con 'true' para enviar el mensaje vacío y recibir la FASE 1
             sendMessage(true);
         }
         
@@ -173,5 +182,4 @@
         window.onload = iniciarDiagnostico;
     </script>
 </body>
-
 </html>

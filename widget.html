@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>STIA Chat Widget</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Estilos básicos para el chat */
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f4f4f9; 
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-container { 
+            width: 100%; 
+            max-width: 500px; 
+            margin: 0 auto; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            background-color: #fff;
+        }
+        #chat-window { 
+            height: 300px; /* Altura inicial, el flexbox lo ajusta */
+            overflow-y: scroll; 
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            background-color: #fff; 
+            flex-grow: 1; /* Permite que la ventana de chat ocupe el espacio disponible */
+        }
+        .stia-message { 
+            background-color: #e6f7ff; 
+            padding: 8px; 
+            margin-bottom: 8px; 
+            border-radius: 5px; 
+            text-align: left; 
+        }
+        .user-message { 
+            background-color: #d1e7dd; 
+            padding: 8px; 
+            margin-bottom: 8px; 
+            border-radius: 5px; 
+            text-align: right; 
+        }
+        #input-area { 
+            display: flex; 
+            padding: 10px; 
+            background-color: #fff; 
+            border-top: 1px solid #ccc; 
+            flex-shrink: 0;
+        }
+        #user-input { 
+            flex-grow: 1; 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 5px 0 0 5px; 
+        }
+        #send-button { 
+            padding: 10px; 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 0 5px 5px 0; 
+            cursor: pointer; 
+            transition: background-color 0.2s;
+        }
+        #send-button:hover:not(:disabled) { 
+            background-color: #0056b3; 
+        }
+        #send-button:disabled {
+            background-color: #a0c9f1;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div id="chat-window">
+        </div>
+
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="Escribe tu mensaje o respuesta..." disabled>
+            <button id="send-button" onclick="sendMessage()" disabled>Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        // ***************************************************************
+        // *** IMPORTANTE: REEMPLAZA ESTA URL CON TU URL HTTPS DE NGROK ***
+        // ***************************************************************
+        const API_URL = 'https://[TU_URL_DE_NGROK]/api/tutor'; 
+
+        // Función para agregar mensajes a la ventana de chat
+        function appendMessage(sender, message) {
+            const chatWindow = document.getElementById('chat-window');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = sender === 'STIA' ? 'stia-message' : 'user-message';
+            // Usamos innerHTML para permitir que Gemini envíe texto en negrita, etc.
+            msgDiv.innerHTML = `<b>${sender}:</b> ${message}`; 
+            chatWindow.appendChild(msgDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        // Función principal para enviar el mensaje, ahora acepta el flag 'esInicial'
+        async function sendMessage(esInicial = false) {
+            const inputElement = document.getElementById('user-input');
+            const sendButton = document.getElementById('send-button');
+
+            // Si es la llamada inicial, el mensaje es vacío. Si no, usa el valor del input.
+            const message = esInicial ? '' : inputElement.value; 
+
+            // Si no hay mensaje y no es la llamada inicial, no hace nada.
+            if (!message && !esInicial) return;
+            
+            // Si no es la llamada inicial, muestra el mensaje del usuario y limpia el input
+            if (!esInicial) {
+                appendMessage('Yo', message);
+                inputElement.value = '';
+            }
+            
+            // Deshabilitar UI durante la petición (prevención de doble clic/envío)
+            inputElement.disabled = true;
+            sendButton.disabled = true;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        message: message, // El mensaje real o vacío si es inicial
+                        user_id: 'mi_primer_estudiante' // ID de sesión para la memoria
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    appendMessage('STIA', data.respuesta);
+                } else {
+                    // Manejo de errores de Flask/Gemini
+                    appendMessage('STIA', `Error del sistema STIA: ${data.error}. Revisa la terminal de Python.`);
+                }
+            } catch (error) {
+                // Manejo de errores de red (Ngrok desconectado, etc.)
+                appendMessage('STIA', `⚠️ **Error de Conexión (Red):** No se pudo conectar con el servidor STIA. Asegúrate de que Ngrok y Python estén ejecutándose.`);
+                console.error('Error de red:', error);
+            } finally {
+                // Habilitar UI de nuevo
+                inputElement.disabled = false;
+                sendButton.disabled = false;
+            }
+        }
+        
+        // Función que se ejecuta al cargar la página para forzar el primer mensaje
+        function iniciarDiagnostico() {
+            // Llama a sendMessage con 'true' para enviar el mensaje vacío
+            // Esto obliga a STIA a responder con la FASE 1 (Bienvenida)
+            sendMessage(true);
+        }
+        
+        // Permite enviar mensajes con la tecla Enter
+        document.getElementById('user-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Llama a la función al cargar la página
+        window.onload = iniciarDiagnostico;
+    </script>
+</body>
+</html>
